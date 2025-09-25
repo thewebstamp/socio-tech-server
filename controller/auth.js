@@ -8,21 +8,21 @@ export const beginSignup = (req, res) => {
     const { email, password } = req.body;
     const profile_picture = "user-min.png";
     const cover_photo = "welcome-min.jpg";
-    const q = "SELECT * FROM users WHERE email = ?";
+    const q = "SELECT * FROM users WHERE email = $1";
     //Check if email already exist in database
-    db.query(q, [email], (err, data) => {
+    db.query(q, [email], (err, result) => {
         if (err) {
             return res.status(500).json({ error: err });
         }
-        if (data.length > 0) {
+        if (result.rows.length > 0) {
             return res.status(409).json({ error: "A user with this email already exist" });
         }
         //Hash password
         const salt = bcrypt.genSaltSync(10);
         const hashedPassword = bcrypt.hashSync(password, salt);
         //Store user details in database
-        const qu = "INSERT INTO users (email, password, profile_picture, cover_photo) VALUES (?, ?, ?, ?)";
-        db.query(qu, [email, hashedPassword, profile_picture, cover_photo], (err, data) => {
+        const qu = "INSERT INTO users (email, password, profile_picture, cover_photo) VALUES ($1, $2, $3, $4)";
+        db.query(qu, [email, hashedPassword, profile_picture, cover_photo], (err, result) => {
             if (err) {
                 return res.status(500).json({ error: err });
             }
@@ -34,39 +34,39 @@ export const beginSignup = (req, res) => {
 //FINISH SIGNUP CONTROLLER
 export const finishSignup = (req, res) => {
     const { fullname, username, email } = req.body;
-    const q = "SELECT * FROM users WHERE username = ?";
+    const q = "SELECT * FROM users WHERE username = $1";
     //Check if username already exist
-    db.query(q, [username], (err, data) => {
+    db.query(q, [username], (err, result) => {
         if (err) {
             return res.status(500).json({ error: err });
         }
-        if (data[0]) {
+        if (result.rows[0]) {
             return res.status(409).json({ error: "Username has been taken, try something else" });
         }
 
-        const que = "UPDATE users SET name = ?, username = ? WHERE email = ?";
+        const que = "UPDATE users SET name = $1, username = $2 WHERE email = $3";
         //Update user details
-        db.query(que, [fullname, username, email], (err, data) => {
+        db.query(que, [fullname, username, email], (err, result) => {
             if (err) {
                 return res.status(500)
                     .json({ error: err });
             };
 
             //Sign in user
-            const qu = "SELECT * FROM users WHERE email = ?";
-            db.query(qu, [email], (err, data) => {
+            const qu = "SELECT * FROM users WHERE email = $1";
+            db.query(qu, [email], (err, result) => {
                 if (err) {
                     return res.status(500)
                         .json({ error: err });
                 }
 
                 //Create user token
-                const token = jwt.sign({ id: data[0].id }, 'secretKey');
-                const { password: _, ...others } = data[0];
+                const token = jwt.sign({ id: result.rows[0].id }, 'secretKey');
+                const { password: _, ...others } = result.rows[0];
                 res.cookie("accessToken", token, {
                     httpOnly: true,
-                    secure: false,
-                    sameSite: 'lax'
+                    secure: true,
+                    sameSite: 'none'
                 })
                     .status(200)
                     .json(others)
@@ -78,26 +78,26 @@ export const finishSignup = (req, res) => {
 //LOGIN CONTROLLER
 export const login = (req, res) => {
     const { username, password } = req.body;
-    const q = "SELECT * FROM users WHERE username = ? OR email = ?";
+    const q = "SELECT * FROM users WHERE username = $1 OR email = $2";
     //Check if the username/email is valid
-    db.query(q, [username, username], (err, data) => {
+    db.query(q, [username, username], (err, result) => {
         if (err) {
             return res.status(500)
                 .json({ error: err });
         }
-        if (data.length === 0) {
+        if (result.rows.length === 0) {
             return res.status(404)
                 .json({ error: "Email/Username is not yet registered" });
         }
 
         //Check if password is correct
-        const checkPassword = bcrypt.compareSync(password, data[0].password);
+        const checkPassword = bcrypt.compareSync(password, result.rows[0].password);
         if (!checkPassword) {
             return res.status(401)
                 .json({ error: "Incorrect password" });
         }
-        const token = jwt.sign({ id: data[0].id }, 'secretKey');
-        const { password: _, ...others } = data[0];
+        const token = jwt.sign({ id: result.rows[0].id }, 'secretKey');
+        const { password: _, ...others } = result.rows[0];
         res.cookie("accessToken", token, {
             httpOnly: true,
             secure: false,
@@ -129,35 +129,35 @@ export const googleAuth = async (req, res) => {
         const { sub: google_id, email, name } = payload;
 
         // Check if user exists
-        const q = "SELECT * FROM users WHERE google_id = ? OR email = ?";
-        db.query(q, [google_id, email], (err, data) => {
+        const q = "SELECT * FROM users WHERE google_id = $1 OR email = $2";
+        db.query(q, [google_id, email], (err, result) => {
             if (err) return res.status(500).json({ error: err });
 
-            if (data.length > 0) {
+            if (result.rows.length > 0) {
                 // Existing user → login
-                const token = jwt.sign({ id: data[0].id }, "secretKey");
-                const { password, ...others } = data[0];
+                const token = jwt.sign({ id: result.rows[0].id }, "secretKey");
+                const { password, ...others } = result.rows[0];
                 return res.cookie("accessToken", token, { httpOnly: true }).status(200).json(others);
             } else {
                 // New user → insert
                 const cover_photo = "welcome-min.jpg";
                 const profile_picture = "user-min.png";
                 const username = email.split("@")[0];
-                const insertQ = "INSERT INTO users (google_id, email, name, username, profile_picture, cover_photo) VALUES (?, ?, ?, ?, ?, ?)";
+                const insertQ = "INSERT INTO users (google_id, email, name, username, profile_picture, cover_photo) VALUES ($1, $2, $3, $4, $5, $6)";
                 db.query(insertQ, [google_id, email, name, username, profile_picture, cover_photo], (err, result) => {
                     if (err) return res.status(500).json({ error: err });
 
                     //Sign in user
-                    const qu = "SELECT * FROM users WHERE email = ?";
-                    db.query(qu, [email], (err, data) => {
+                    const qu = "SELECT * FROM users WHERE email = $1";
+                    db.query(qu, [email], (err, result) => {
                         if (err) {
                             return res.status(500)
                                 .json({ error: err });
                         }
 
                         //Create user token
-                        const token = jwt.sign({ id: data[0].id }, 'secretKey');
-                        const { password: _, ...others } = data[0];
+                        const token = jwt.sign({ id: result.rows[0].id }, 'secretKey');
+                        const { password: _, ...others } = result.rows[0];
                         res.cookie("accessToken", token, {
                             httpOnly: true,
                             secure: false,

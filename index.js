@@ -43,12 +43,12 @@ app.use("/api", Connect); //Connect with a User
 app.use("/api", Edit); // Edit Cover & Profile Picture
 
 cron.schedule("0 * * * *", () => {
-    const q = "DELETE FROM status WHERE created_at < NOW() - INTERVAL 24 HOUR";
-    db.query(q, (err, data) => {
+    const q = "DELETE FROM status WHERE created_at < NOW() - INTERVAL '24 HOURS'";
+    db.query(q, (err, result) => {
         if (err) {
             console.error("❌ Error cleaning statuses:", err);
         } else {
-            console.log("✅ Old statuses cleaned up:", data.affectedRows, "deleted");
+            console.log("✅ Old statuses cleaned up:", result.rowCount, "deleted");
         }
     });
 });
