@@ -30,7 +30,7 @@ app.use(cors({
 app.use(cookieParser());
 
 // Serve uploaded images
-app.use("/uploads", express.static("uploads"));
+// app.use("/uploads", express.static("uploads"));
 //Express Router
 app.use("/api/auth", authRoute); // User Authentication Route
 app.use("/api", postRoute); // Route to Fetch Posts in Home Page

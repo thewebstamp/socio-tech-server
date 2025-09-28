@@ -4,28 +4,23 @@ import jwt from 'jsonwebtoken';
 import { OAuth2Client } from "google-auth-library";
 
 //BEGIN SIGNUP CONTROLLER
+const DEFAULT_PROFILE_URL = "https://res.cloudinary.com/dxjmrf3jq/image/upload/v1759049384/user-min_jnuii8.png";
+const DEFAULT_COVER_URL = "https://res.cloudinary.com/dxjmrf3jq/image/upload/v1759049358/welcome-min_ttljgc.jpg";
+
 export const beginSignup = (req, res) => {
     const { email, password } = req.body;
-    const profile_picture = "user-min.png";
-    const cover_photo = "welcome-min.jpg";
+
     const q = "SELECT * FROM users WHERE email = $1";
-    //Check if email already exist in database
     db.query(q, [email], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: err });
-        }
-        if (result.rows.length > 0) {
-            return res.status(409).json({ error: "A user with this email already exist" });
-        }
-        //Hash password
+        if (err) return res.status(500).json({ error: err });
+        if (result.rows.length > 0) return res.status(409).json({ error: "A user with this email already exist" });
+
         const salt = bcrypt.genSaltSync(10);
         const hashedPassword = bcrypt.hashSync(password, salt);
-        //Store user details in database
+
         const qu = "INSERT INTO users (email, password, profile_picture, cover_photo) VALUES ($1, $2, $3, $4)";
-        db.query(qu, [email, hashedPassword, profile_picture, cover_photo], (err, result) => {
-            if (err) {
-                return res.status(500).json({ error: err });
-            }
+        db.query(qu, [email, hashedPassword, DEFAULT_PROFILE_URL, DEFAULT_COVER_URL], (err2) => {
+            if (err2) return res.status(500).json({ error: err2 });
             res.status(200).json(email);
         });
     });
@@ -142,11 +137,11 @@ export const googleAuth = async (req, res) => {
                 return res.cookie("accessToken", token, { httpOnly: true }).status(200).json(others);
             } else {
                 // New user → insert
-                const cover_photo = "welcome-min.jpg";
-                const profile_picture = "user-min.png";
+                const DEFAULT_PROFILE_URL = "https://res.cloudinary.com/dxjmrf3jq/image/upload/v1759049384/user-min_jnuii8.png";
+                const DEFAULT_COVER_URL = "https://res.cloudinary.com/dxjmrf3jq/image/upload/v1759049358/welcome-min_ttljgc.jpg";
                 const username = email.split("@")[0];
                 const insertQ = "INSERT INTO users (google_id, email, name, username, profile_picture, cover_photo) VALUES ($1, $2, $3, $4, $5, $6)";
-                db.query(insertQ, [google_id, email, name, username, profile_picture, cover_photo], (err, result) => {
+                db.query(insertQ, [google_id, email, name, username, DEFAULT_PROFILE_URL, DEFAULT_COVER_URL], (err, result) => {
                     if (err) return res.status(500).json({ error: err });
 
                     //Sign in user
