@@ -17,7 +17,7 @@ export const getPosts = (req, res) => {
   JOIN users u ON p.user_id = u.id
   LEFT JOIN relationship r ON r.followed_id = u.id
   WHERE r.follower_id = $1 OR u.id = $2
-  ORDER BY p.id, p.created_at DESC;
+  ORDER BY p.id DESC, p.created_at DESC;
 `;
     const token = req.cookies.accessToken;
 
