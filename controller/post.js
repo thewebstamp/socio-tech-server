@@ -5,7 +5,20 @@ import cloudinary from "../lib/cloudinary.js";
 
 //FETCH POSTS IN HOMEPAGE CONTROLLER
 export const getPosts = (req, res) => {
-    const q = "SELECT p.*, p.id AS postId, u.id AS userId, u.profile_picture, u.name, (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count FROM post p JOIN users u ON p.user_id = u.id LEFT JOIN relationship r ON r.followed_id = u.id WHERE r.follower_id = $1 OR u.id = $2 ORDER BY p.created_at DESC;";
+    const q = `
+  SELECT DISTINCT ON (p.id)
+    p.*, 
+    p.id AS postId, 
+    u.id AS userId, 
+    u.profile_picture, 
+    u.name,
+    (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count
+  FROM post p
+  JOIN users u ON p.user_id = u.id
+  LEFT JOIN relationship r ON r.followed_id = u.id
+  WHERE r.follower_id = $1 OR u.id = $2
+  ORDER BY p.id, p.created_at DESC;
+`;
     const token = req.cookies.accessToken;
 
     if (!token) { return res.status(401).json("Unauthorized token") };
